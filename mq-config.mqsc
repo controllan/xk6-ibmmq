@@ -1,0 +1,12 @@
+* Disable channel authentication
+ALTER QMGR CHLAUTH(DISABLED)
+
+* Alter authinfo to make client authentication optional
+ALTER AUTHINFO('DEV.AUTHINFO') AUTHTYPE(IDPWOS) CHCKCLNT(OPTIONAL) CHCKLOCL(OPTIONAL) ADOPTCTX(YES)
+REFRESH SECURITY(*) TYPE(CONNAUTH)
+
+* Alter the channel to not require authentication
+ALTER CHANNEL('DEV.APP.SVRCONN') CHLTYPE(SVRCONN) MCAUSER('app') 
+
+* Start the channel
+START CHANNEL('DEV.APP.SVRCONN')

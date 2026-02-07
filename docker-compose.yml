@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  ibmmq:
+    image: icr.io/ibm-messaging/mq:latest
+    container_name: ibmmq-dev
+    ports:
+      - "1414:1414"
+      - "9444:9443"
+    environment:
+      - LICENSE=accept
+      - MQ_QMGR_NAME=QM1
+      - MQ_APP_PASSWORD=password
+      - MQ_ADMIN_PASSWORD=admin123
+      - MQ_ENABLE_METRICS=false
+      - MQ_DISABLE_WEB_CONSOLE=true
+    volumes:
+      - mq-data:/mnt/mqm
+      - ./mq-config.mqsc:/etc/mqm/20-dev.mqsc
+    networks:
+      - mq-network
+    healthcheck:
+      test: ["CMD", "chkmqhealthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+volumes:
+  mq-data:
+
+networks:
+  mq-network:
+    driver: bridge

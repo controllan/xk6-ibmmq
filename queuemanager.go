@@ -38,7 +38,6 @@ func (mi *ModuleInstance) NewQueueManager(config QueueManagerConfig) (*QueueMana
 // connect establishes connection to IBM MQ
 func (qm *QueueManager) connect() error {
 	cno := ibmmq.NewMQCNO()
-	csp := ibmmq.NewMQCSP()
 	cd := ibmmq.NewMQCD()
 
 	// Set connection details
@@ -48,13 +47,12 @@ func (qm *QueueManager) connect() error {
 	// SSL Configuration
 	if qm.config.SSLCipher != "" {
 		cd.SSLCipherSpec = qm.config.SSLCipher
-		cno.ClientConn = cd
-	} else {
-		cno.ClientConn = cd
 	}
+	cno.ClientConn = cd
 
-	// Authentication
+	// Authentication - only set if username provided
 	if qm.config.Username != "" {
+		csp := ibmmq.NewMQCSP()
 		csp.AuthenticationType = ibmmq.MQCSP_AUTH_USER_ID_AND_PWD
 		csp.UserId = qm.config.Username
 		csp.Password = qm.config.Password
@@ -93,22 +91,32 @@ func (qm *QueueManager) Put(queueName string, message []byte, headers map[string
 	pmo.Options = ibmmq.MQPMO_NO_SYNCPOINT
 
 	// Set message properties/headers if provided
+	var putMsgHandle ibmmq.MQMessageHandle
 	if len(headers) > 0 {
-		pmho := ibmmq.NewMQPMHO()
+		// Create a message handle for setting properties
+		cmho := ibmmq.NewMQCMHO()
+		putMsgHandle, err = qm.qMgr.CrtMH(cmho)
+		if err != nil {
+			return fmt.Errorf("failed to create message handle: %w", err)
+		}
+		defer func() {
+			dmho := ibmmq.NewMQDMHO()
+			putMsgHandle.DltMH(dmho)
+		}()
+
+		// Set properties on the message handle
+		smpo := ibmmq.NewMQSMPO()
 		pd := ibmmq.NewMQPD()
 
 		for key, value := range headers {
-			pd.Options = ibmmq.MQPD_NONE
-			pd.CopyOptions = ibmmq.MQCOPY_NONE
-
-			// Set property
-			err = qObject.SetMP(pmho, key, pd, value)
+			err = putMsgHandle.SetMP(smpo, key, pd, value)
 			if err != nil {
 				return fmt.Errorf("failed to set property %s: %w", key, err)
 			}
 		}
 
-		pmo.OriginalMsgHandle = pmho.NewMsgHandle
+		// Associate the message handle with the put operation
+		pmo.OriginalMsgHandle = putMsgHandle
 	}
 
 	// Put message
@@ -134,10 +142,22 @@ func (qm *QueueManager) Get(queueName string, waitInterval int32) (*Message, err
 	}
 	defer qObject.Close(0)
 
+	// Create message handle for properties
+	cmho := ibmmq.NewMQCMHO()
+	getMsgHandle, err := qm.qMgr.CrtMH(cmho)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create message handle: %w", err)
+	}
+	defer func() {
+		dmho := ibmmq.NewMQDMHO()
+		getMsgHandle.DltMH(dmho)
+	}()
+
 	// Create message descriptor and get options
 	getmqmd := ibmmq.NewMQMD()
 	gmo := ibmmq.NewMQGMO()
 	gmo.Options = ibmmq.MQGMO_NO_SYNCPOINT | ibmmq.MQGMO_PROPERTIES_IN_HANDLE
+	gmo.MsgHandle = getMsgHandle
 
 	if waitInterval > 0 {
 		gmo.Options |= ibmmq.MQGMO_WAIT
@@ -146,34 +166,35 @@ func (qm *QueueManager) Get(queueName string, waitInterval int32) (*Message, err
 		gmo.Options |= ibmmq.MQGMO_NO_WAIT
 	}
 
-	// Create message handle for properties
-	cmho := ibmmq.NewMQCMHO()
-	msgHandle, err := qm.qMgr.CrtMH(cmho)
-	if err == nil {
-		gmo.MsgHandle = msgHandle
-		defer qm.qMgr.DltMH(&msgHandle)
-	}
-
 	// Allocate buffer for message
 	buffer := make([]byte, 100000) // 100KB max message size
 	datalen, err := qObject.Get(getmqmd, gmo, buffer)
 	if err != nil {
+		mqret, ok := err.(*ibmmq.MQReturn)
+		if ok && mqret.MQRC == ibmmq.MQRC_NO_MSG_AVAILABLE {
+			return nil, nil // No message available
+		}
 		return nil, fmt.Errorf("failed to get message: %w", err)
 	}
 
 	// Extract headers/properties
 	headers := make(map[string]string)
-	if msgHandle.IsValid() {
-		impo := ibmmq.NewMQIMPO()
-		pd := ibmmq.NewMQPD()
+	impo := ibmmq.NewMQIMPO()
+	pd := ibmmq.NewMQPD()
+	impo.Options = ibmmq.MQIMPO_CONVERT_VALUE | ibmmq.MQIMPO_INQ_FIRST
 
-		for {
-			name, value, err := msgHandle.InqMP(impo, pd, "%")
-			if err != nil {
+	for {
+		name, value, err := getMsgHandle.InqMP(impo, pd, "%")
+		if err != nil {
+			mqret, ok := err.(*ibmmq.MQReturn)
+			if ok && mqret.MQRC == ibmmq.MQRC_PROPERTY_NOT_AVAILABLE {
 				break // No more properties
 			}
-			headers[name] = fmt.Sprintf("%v", value)
+			// Other errors are logged but don't stop processing
+			break
 		}
+		headers[name] = fmt.Sprintf("%v", value)
+		impo.Options = ibmmq.MQIMPO_CONVERT_VALUE | ibmmq.MQIMPO_INQ_NEXT
 	}
 
 	return &Message{

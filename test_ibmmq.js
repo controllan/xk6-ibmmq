@@ -1,5 +1,5 @@
 // test_ibmmq.js
-import { QueueManager } from 'k6/x/ibmmq';
+import { connectQueueManager } from 'k6/x/ibmmq';
 import { check } from 'k6';
 
 export const options = {
@@ -8,12 +8,15 @@ export const options = {
 };
 
 // Initialize queue manager in init context
-const qm = new QueueManager({
-  connectionName: 'localhost(1414)',
+// Use 'ibmmq-dev' as hostname when running inside Docker network
+// Use 'localhost' when running from host machine
+const mqHost = __ENV.MQ_HOST || 'ibmmq-dev';
+const qm = connectQueueManager({
+  connectionName: `${mqHost}(1414)`,
   queueManager: 'QM1',
   channel: 'DEV.APP.SVRCONN',
-  username: 'app',
-  password: 'password',
+  // username: 'app',
+  // password: 'password',
   // sslCipher: 'TLS_RSA_WITH_AES_256_CBC_SHA256', // Optional SSL
 });
 
