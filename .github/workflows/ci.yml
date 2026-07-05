@@ -27,6 +27,8 @@ jobs:
         with:
           project-key: controllan_xk6-ibmmq
           coverage-file: coverage.out
+          sonar-token: ${{ secrets.SONAR_TOKEN }}
+          sonar-host-url: ${{ secrets.SONAR_HOST_URL }}
 
   build:
     name: Build

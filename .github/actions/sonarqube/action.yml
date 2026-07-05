@@ -1,4 +1,3 @@
-# .github/actions/sonarqube/action.yml
 name: 'SonarQube Analysis'
 description: 'Run SonarQube analysis'
 
@@ -10,6 +9,12 @@ inputs:
     description: 'Path to coverage report file'
     required: false
     default: ''
+  sonar-token:
+    description: 'SonarQube token'
+    required: true
+  sonar-host-url:
+    description: 'SonarQube host URL'
+    required: true
 
 runs:
   using: 'composite'
@@ -17,8 +22,8 @@ runs:
     - name: SonarQube Scan
       uses: SonarSource/sonarqube-scan-action@v4
       env:
-        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+        SONAR_TOKEN: ${{ inputs.sonar-token }}
+        SONAR_HOST_URL: ${{ inputs.sonar-host-url }}
       with:
         args: >
           -Dsonar.projectKey=${{ inputs.project-key }}
@@ -28,4 +33,4 @@ runs:
       uses: SonarSource/sonarqube-quality-gate-action@v1
       timeout-minutes: 5
       env:
-        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        SONAR_TOKEN: ${{ inputs.sonar-token }}
