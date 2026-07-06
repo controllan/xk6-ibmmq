@@ -1,0 +1,35 @@
+name: 'SonarQube Analysis'
+description: 'Run SonarQube analysis'
+
+inputs:
+  project-key:
+    description: 'SonarQube project key'
+    required: true
+  coverage-file:
+    description: 'Path to coverage report file'
+    required: false
+    default: ''
+  sonar-token:
+    description: 'SonarQube token'
+    required: true
+  sonar-host-url:
+    description: 'SonarQube host URL'
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    - name: SonarQube Scan
+      uses: SonarSource/sonarqube-scan-action@v8
+      env:
+        SONAR_TOKEN: ${{ inputs.sonar-token }}
+        SONAR_HOST_URL: ${{ inputs.sonar-host-url }}
+      with:
+        args: >
+          -Dsonar.projectKey=${{ inputs.project-key }}
+          ${{ inputs.coverage-file != '' && format('-Dsonar.go.coverage.reportPaths={0}', inputs.coverage-file) || '' }}
+
+    - name: SonarQube Quality Gate Check
+      uses: SonarSource/sonarqube-quality-gate-action@v1
+      env:
+        SONAR_TOKEN: ${{ inputs.sonar-token }}
