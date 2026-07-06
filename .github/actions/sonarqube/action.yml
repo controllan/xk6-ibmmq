@@ -31,6 +31,5 @@ runs:
 
     - name: SonarQube Quality Gate Check
       uses: SonarSource/sonarqube-quality-gate-action@v1
-      timeout-minutes: 5
       env:
         SONAR_TOKEN: ${{ inputs.sonar-token }}
