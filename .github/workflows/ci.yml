@@ -21,13 +21,18 @@ jobs:
 
       - name: Install IBM MQ Client
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libmq-dev
+          cd /tmp
+          curl -fsSL "https://public.dhe.ibm.com/ibmdl/export/pub/software/websphere/messaging/mqdev/redist/IBM-MQC-Redist-LinuxX64.tar.gz" -o mq.tar.gz
+          sudo mkdir -p /opt/mqm
+          sudo tar -xzf mq.tar.gz -C /opt/mqm
+          rm mq.tar.gz
 
       - name: Run tests with coverage
         run: go test ./... -v -coverprofile=coverage.out
         env:
           CGO_ENABLED: '1'
+          CGO_CFLAGS: '-I/opt/mqm/inc'
+          CGO_LDFLAGS: '-L/opt/mqm/lib64 -lmqm -lmqic -lpthread'
 
       - name: SonarQube Analysis
         uses: ./.github/actions/sonarqube
@@ -51,10 +56,15 @@ jobs:
 
       - name: Install IBM MQ Client
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libmq-dev
+          cd /tmp
+          curl -fsSL "https://public.dhe.ibm.com/ibmdl/export/pub/software/websphere/messaging/mqdev/redist/IBM-MQC-Redist-LinuxX64.tar.gz" -o mq.tar.gz
+          sudo mkdir -p /opt/mqm
+          sudo tar -xzf mq.tar.gz -C /opt/mqm
+          rm mq.tar.gz
 
       - name: Build
         run: ./build.sh
         env:
           CGO_ENABLED: '1'
+          CGO_CFLAGS: '-I/opt/mqm/inc'
+          CGO_LDFLAGS: '-L/opt/mqm/lib64 -lmqm -lmqic -lpthread'
