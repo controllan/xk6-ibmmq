@@ -22,7 +22,7 @@ jobs:
       - name: Install IBM MQ Client
         run: |
           cd /tmp
-          curl -fsSL "https://public.dhe.ibm.com/ibmdl/export/pub/software/websphere/messaging/mqdev/redist/IBM-MQC-Redist-LinuxX64.tar.gz" -o mq.tar.gz
+          curl -fsSL "https://public.dhe.ibm.com/ibmdl/export/pub/software/websphere/messaging/mqdev/redist/10.0.0.0-IBM-MQC-Redist-LinuxX64.tar.gz" -o mq.tar.gz
           sudo mkdir -p /opt/mqm
           sudo tar -xzf mq.tar.gz -C /opt/mqm
           rm mq.tar.gz
@@ -57,7 +57,7 @@ jobs:
       - name: Install IBM MQ Client
         run: |
           cd /tmp
-          curl -fsSL "https://public.dhe.ibm.com/ibmdl/export/pub/software/websphere/messaging/mqdev/redist/IBM-MQC-Redist-LinuxX64.tar.gz" -o mq.tar.gz
+          curl -fsSL "https://public.dhe.ibm.com/ibmdl/export/pub/software/websphere/messaging/mqdev/redist/10.0.0.0-IBM-MQC-Redist-LinuxX64.tar.gz" -o mq.tar.gz
           sudo mkdir -p /opt/mqm
           sudo tar -xzf mq.tar.gz -C /opt/mqm
           rm mq.tar.gz
